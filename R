@@ -1,0 +1,39 @@
+setwd("D:/R/stock/R_read_yahoo_stock")
+library(data.table)
+library(zoo)
+#create import path
+path<-"D:/R/stock/R_read_yahoo_stock/csv/"
+# create list of all .csv files in folder
+filelist<-list.files(path=path,pattern = "*.csv")
+#check count of the filelist
+n<-length(filelist)
+print(n)
+
+# read in each .csv file in file_list and create a data frame with the same name as the .csv file
+for(i in 1:length(filelist)){
+  assign(filelist[i],
+  read.csv(paste(path,filelist[i],sep = ""))
+  )}
+
+# read in each .csv file in file_list and rbind them into a data frame called data 
+#raw1 <- 
+#  do.call("rbind", 
+#          lapply(filelist, 
+#                 function(x) 
+#                   read.csv(paste(path, x, sep=''), 
+#                            stringsAsFactors = FALSE)))
+
+raw1<-`0001.csv`
+raw1[1:10,]
+
+#formatting date
+raw1$Date<-as.Date(raw1$Date,"%Y-%m-%d")
+
+#sort data
+raw2<-raw1[order(raw1$Date),]
+raw2[1:10,]
+
+#lag price data
+lagprice<-lag(raw2$Adj.Close,-1,na.pad=TRUE)
+raw4<-cbind(raw2,lagprice)
+raw4[1:10,]
