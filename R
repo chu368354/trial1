@@ -12,8 +12,13 @@ print(n)
 # read in each .csv file in file_list and create a data frame with the same name as the .csv file
 for(i in 1:length(filelist)){
   assign(filelist[i],
-  read.csv(paste(path,filelist[i],sep = ""))
+         read.csv(paste(path,filelist[i],sep = ""))
   )}
+
+system.time(for(i in 1:length(filelist)){
+  assign(filelist[i],
+         read.csv(paste(path,filelist[i],sep = ""))
+  )})
 
 # read in each .csv file in file_list and rbind them into a data frame called data 
 #raw1 <- 
@@ -55,6 +60,33 @@ lagpad <- function(x, k) {
 #lag price data
 lagprice<-lagpad(raw3$Adj.Close,1)
 
-#lagprice<-lag(raw3$Adj.Close,-1,na.pad=TRUE)
+#merge column
 raw4<-cbind(raw3,lagprice)
 raw4[1:10,]
+
+#create column if diff>0 or diff<0
+raw4$plus<-ifelse((raw4$Adj.Close-raw4$lagprice)>0,(raw4$Adj.Close-raw4$lagprice),NA)
+raw4$minus<-ifelse((raw4$Adj.Close-raw4$lagprice)<0,(raw4$Adj.Close-raw4$lagprice),NA)
+raw4[1:10,]
+
+#add row number
+raw4$n<-seq.int(nrow(raw4))
+
+#7 day for RSI
+#raw4$start7=ifelse((raw4$n-6)<1,1,raw4$n-6)
+raw4$start7<-raw4$n-6
+raw4[1:10,]
+
+#keep useful column
+RSI1<-raw4[c("Date","plus","minus","n")]
+RSI1[1:10,]
+
+#create dummy dataset for merge
+dummy1<-raw4[c("start7","n")]
+#rename column
+names(dummy1)[names(dummy1)=="n"] <- "enddate"
+
+#let join
+RSI2<-sqldf("select a.*,b.* from dummy1 as a left join RSI1 as b
+            on (a.start7<=b.n<=a.enddate)")
+RSI2[1:100,]
