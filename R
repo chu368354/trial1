@@ -40,7 +40,21 @@ raw2[1:10,]
 raw3<-raw2[!(raw2$Volume==0),]
 raw3[1:10,]
 
+#lag function
+lagpad <- function(x, k) {
+  if (!is.vector(x)) 
+    stop('x must be a vector')
+  if (!is.numeric(x)) 
+    stop('x must be numeric')
+  if (!is.numeric(k))
+    stop('k must be numeric')
+  if (1 != length(k))
+    stop('k must be a single number')
+  c(rep(NA, k), x)[1 : length(x)] 
+}
 #lag price data
-lagprice<-lag(raw3$Adj.Close,-1,na.pad=TRUE)
+lagprice<-lagpad(raw3$Adj.Close,1)
+
+#lagprice<-lag(raw3$Adj.Close,-1,na.pad=TRUE)
 raw4<-cbind(raw3,lagprice)
 raw4[1:10,]
