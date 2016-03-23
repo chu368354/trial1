@@ -26,6 +26,9 @@ for(i in 1:length(filelist)){
 raw1<-`0001.csv`
 raw1[1:10,]
 
+#checking format of each column
+sapply(raw1,class)
+
 #formatting date
 raw1$Date<-as.Date(raw1$Date,"%Y-%m-%d")
 
@@ -33,7 +36,11 @@ raw1$Date<-as.Date(raw1$Date,"%Y-%m-%d")
 raw2<-raw1[order(raw1$Date),]
 raw2[1:10,]
 
+#delete row with 0 Volume
+raw3<-raw2[!(raw2$Volume==0),]
+raw3[1:10,]
+
 #lag price data
-lagprice<-lag(raw2$Adj.Close,-1,na.pad=TRUE)
-raw4<-cbind(raw2,lagprice)
+lagprice<-lag(raw3$Adj.Close,-1,na.pad=TRUE)
+raw4<-cbind(raw3,lagprice)
 raw4[1:10,]
