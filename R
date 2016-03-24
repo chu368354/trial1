@@ -1,6 +1,5 @@
 setwd("D:/R/stock/R_read_yahoo_stock")
-library(data.table)
-library(zoo)
+library(sqldf)
 #create import path
 path<-"D:/R/stock/R_read_yahoo_stock/csv/"
 # create list of all .csv files in folder
@@ -8,6 +7,10 @@ filelist<-list.files(path=path,pattern = "*.csv")
 #check count of the filelist
 n<-length(filelist)
 print(n)
+
+#Variable for RSI day
+day<<-14
+day
 
 # read in each .csv file in file_list and create a data frame with the same name as the .csv file
 for(i in 1:length(filelist)){
@@ -58,23 +61,26 @@ lagpad <- function(x, k) {
   c(rep(NA, k), x)[1 : length(x)] 
 }
 #lag price data
-lagprice<-lagpad(raw3$Adj.Close,1)
+#lagprice<-lagpad(raw3$Adj.Close,1)
+lagprice<-lagpad(raw3$Close,1)
 
 #merge column
 raw4<-cbind(raw3,lagprice)
 raw4[1:10,]
 
 #create column if diff>0 or diff<0
-raw4$plus<-ifelse((raw4$Adj.Close-raw4$lagprice)>0,(raw4$Adj.Close-raw4$lagprice),NA)
-raw4$minus<-ifelse((raw4$Adj.Close-raw4$lagprice)<0,(raw4$Adj.Close-raw4$lagprice),NA)
+#raw4$plus<-ifelse((raw4$Adj.Close-raw4$lagprice)>0,(raw4$Adj.Close-raw4$lagprice),NA)
+#raw4$minus<-ifelse((raw4$Adj.Close-raw4$lagprice)<0,(raw4$Adj.Close-raw4$lagprice),NA)
+raw4$plus<-ifelse((raw4$Close-raw4$lagprice)>0,(raw4$Close-raw4$lagprice),NA)
+raw4$minus<-ifelse((raw4$Close-raw4$lagprice)<0,(raw4$Close-raw4$lagprice),NA)
 raw4[1:10,]
 
 #add row number
 raw4$n<-seq.int(nrow(raw4))
 
 #7 day for RSI
-#raw4$start7=ifelse((raw4$n-6)<1,1,raw4$n-6)
-raw4$start7<-raw4$n-6
+#raw4$startdate=ifelse((raw4$n-6)<1,1,raw4$n-6)
+raw4$startdate<-raw4$n-day+1
 raw4[1:10,]
 
 #keep useful column
@@ -82,11 +88,39 @@ RSI1<-raw4[c("Date","plus","minus","n")]
 RSI1[1:10,]
 
 #create dummy dataset for merge
-dummy1<-raw4[c("start7","n")]
+dummy1<-raw4[c("startdate","n")]
 #rename column
 names(dummy1)[names(dummy1)=="n"] <- "enddate"
+dummy1[1:10,]
 
 #let join
-RSI2<-sqldf("select a.*,b.* from dummy1 as a left join RSI1 as b
-            on (a.start7<=b.n<=a.enddate)")
-RSI2[1:100,]
+RSI2<-sqldf("select * from dummy1 as a left join RSI1 as b
+            on b.n between a.startdate and a.enddate")
+RSI2[1:10,]
+
+#sum by group
+RSI3<-sqldf("select enddate, sum(plus) as plus, sum(minus) as minus
+            from RSI2 group by enddate")
+RSI3[1:10,]
+
+#join back the RSI into raw
+raw5<-raw4[c("Date","Open","High","Low","Close","Volume","Adj.Close","lagprice","n")]
+raw6<-sqldf("select a.*,b.*
+            from raw5 as a left join RSI3 as b
+            on a.n=b.enddate
+            order by a.Date")
+raw6[1:10,]
+nrow(raw6)
+
+raw6$RS<-raw6$plus/raw6$minus*-1
+raw6$RSI<-100-100/(1+raw6$RS)
+raw6[1:10,]
+
+raw7<-sqldf("select *
+            from raw6
+            order by Date desc")
+raw7[1:10,]
+
+#export data
+library(xlsx)
+write.xlsx(raw7,"D:/R/stock/R_read_yahoo_stock/csv/0001.xlsx")
