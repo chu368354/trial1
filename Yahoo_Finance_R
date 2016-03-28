@@ -1,0 +1,104 @@
+setwd("D:/R/stock/yahoo_finance")
+library(sqldf)
+library(xlsx)
+
+#package for RSI
+library(TTR)
+
+#package for MACD
+library(quantmod)
+
+RSIday<<-14
+MACDFast<<-12
+MACDSlow<<-26
+MACDSig<<-9
+
+
+#create import path
+folder<-"D:/R/stock/yahoo_finance/csv/"
+# create list of all .csv files in folder
+filelist<-list.files(path=folder,pattern = "*.csv")
+
+#check count of the filelist
+length(filelist)
+
+# read in each .csv file in file_list and create a data frame with the data of as the .csv file
+for(i in 1:length(filelist)){
+  #  assign(paste("X",i,sep = ""),
+  assign(filelist[i],
+         read.csv(paste(folder,filelist[i],sep = "")))
+}
+
+#get the names of all data frame from work liab
+varlist1 <- names(which(sapply(.GlobalEnv, is.data.frame)))
+varlist2<-sort(varlist1,decreasing = FALSE)
+
+
+#Add column Symbol for each data frame
+for(i in seq_along(varlist2)) {
+  dummy0 <- get(varlist2[i])
+  dummy0$Symbol <- filelist[i]
+  assign(varlist2[i], dummy0)
+}
+rm(dummy0)
+
+#get the names of all data frame from work liab
+varlist3 <- lapply(varlist2,get)
+
+#combine the data into a single dataframe
+raw1<-do.call(rbind,varlist3)
+
+#Remove all imported data frame
+rm(list=ls(pattern = "X"))
+rm(list=ls(pattern = "varlist"))
+
+# read in each .csv file in file_list and create a data frame with the same name as the .csv file
+#for(i in 1:length(filelist)){
+#  assign(filelist[i],
+#         read.csv(paste(folder,filelist[i],sep = ""))
+#  )}
+
+# read in each .csv file in file_list and rbind them into a data frame called raw 
+#raw1 <- 
+#  do.call("rbind", 
+#          lapply(filelist, 
+#                 function(x) 
+#                   read.csv(paste(folder, x, sep=''), 
+#                            stringsAsFactors = FALSE)))
+
+#checking format of each column
+sapply(raw1,class)
+
+#formatting date
+raw1$Date<-as.Date(raw1$Date,"%Y-%m-%d")
+
+#checking format of each column
+sapply(raw1,class)
+
+#use SQL to sort data
+raw2<-sqldf("select * from raw1
+            where Volume>0
+            order by Symbol, Date")
+#RSI
+raw2$RSI14<-RSI(raw2$Close,n=RSIday)
+
+#MACD
+raw2$MACD<-MACD(raw2$Close,nFast = MACDFast, nSlow = MACDSlow, nSig = MACDSig,maType ="EMA", percent = FALSE)
+
+#EMA9
+raw2$MACDFast<-EMA(raw2$Close,n=MACDFast)
+raw2$MACDSlow<-EMA(raw2$Close,n=MACDSlow)
+raw2$MACDdiff<-raw2$MACDFast-raw2$MACDSlow
+raw2$Signal<-EMA(raw2$MACDdiff,n=MACDSig)
+
+#Divergence of MACD
+raw2$Divergence<-raw2$MACD-raw2$Signal
+
+#ADX
+raw2$ADX<-ADX(raw2[,c("High","Low","Close")],n=14,maType = "EMA")
+
+#use SQL to sort data
+raw3<-sqldf("select * from raw2
+            where Volume>0
+            order by Symbol, Date desc")
+raw3[1:10,]
