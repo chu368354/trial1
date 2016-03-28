@@ -95,7 +95,13 @@ raw2$Signal<-EMA(raw2$MACDdiff,n=MACDSig)
 raw2$Divergence<-raw2$MACD-raw2$Signal
 
 #ADX
+#raw2$ADX<-addADX(n = 14, maType="EMA", wilder=TRUE)
 raw2$ADX<-ADX(raw2[,c("High","Low","Close")],n=14,maType = "EMA")
+
+#check stock from yahoo
+library(quantmod)
+getSymbols("0001.HK")
+last(ADX(`0001.HK`))
 
 #use SQL to sort data
 raw3<-sqldf("select * from raw2
